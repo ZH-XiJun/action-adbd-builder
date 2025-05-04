@@ -24,7 +24,7 @@ on:
 jobs:
   build:
     if: github.event.repository.owner.id == github.event.sender.id
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     permissions:
       contents: write
     steps:
@@ -35,30 +35,35 @@ jobs:
         echo "Manifest Branch: ${{ github.event.inputs.MANIFEST_BRANCH }}"
         echo "Device Arch: ${{ github.event.inputs.DEVICE_ARCH }}"
         echo "::endgroup::"
- 
-    # You might want to Checkout your repo first, but not mandatory
+
     - name: Check Out
-      uses: actions/checkout@v3
-    # Cleanup The Actions Workspace Using Custom Composite Run Actions
+      uses: actions/checkout@v4
+
     - name: Cleanup
       uses: rokibhasansagar/slimhub_actions@main
-      # That's it! Now use your normal steps
 
     - name: Prepare the environment
       run: |
         sudo apt update
         sudo apt -y upgrade
-        sudo apt -y install gperf gcc-multilib gcc-10-multilib g++-multilib g++-10-multilib libc6-dev lib32ncurses5-dev x11proto-core-dev libx11-dev tree lib32z-dev libgl1-mesa-dev libxml2-utils xsltproc bc ccache lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev libwxgtk3.0-gtk3-dev libxml2 lzop pngcrush schedtool squashfs-tools imagemagick libbz2-dev lzma ncftp qemu-user-static libstdc++-10-dev libncurses5 python3
+        DEBIAN_FRONTEND=noninteractive sudo apt install -yq \
+            gperf gcc-multilib gcc-10-multilib g++-multilib g++-10-multilib \
+            libc6-dev lib32ncurses5-dev x11proto-core-dev libx11-dev tree lib32z-dev \
+            libgl1-mesa-dev libxml2-utils xsltproc bc ccache lib32readline-dev \
+            lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev libwxgtk3.0-gtk3-dev \
+            libxml2 lzop pngcrush schedtool squashfs-tools imagemagick libbz2-dev \
+            lzma ncftp qemu-user-static libstdc++-10-dev libncurses5 python3
 
     - name: Install OpenJDK
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
         java-version: '8'
+        check-latest: false
 
     - name: Setup SSH Keys
       if: ${{ startsWith(github.event.inputs.MANIFEST_URL, 'git@github.com') }}
-      uses: webfactory/ssh-agent@v0.5.4
+      uses: webfactory/ssh-agent@v0.9.0
       with:
           ssh-private-key: |
               ${{ secrets.SSH_PRIVATE_KEY }}
@@ -69,7 +74,7 @@ jobs:
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
         sudo ln -sf ~/bin/repo /usr/bin/repo
-      
+
     - name: Initialize repo
       run: |
         mkdir workspace
@@ -79,7 +84,7 @@ jobs:
         git config --global user.email "azwhikaru+37921907@github.com"
         repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
       id: pwd
-          
+
     - name: Repo Sync
       run: |
         repo sync -j$(nproc --all) --force-sync
@@ -92,21 +97,29 @@ jobs:
 
     - name: Switch to Python2
       run: |
-        sudo apt -y install python
-        sudo rm -rf /usr/bin/python
-        sudo ln -s /usr/bin/python2 /usr/bin/python
-        # sudo ln -s /usr/bin/python3 /usr/bin/python3
+        sudo add-apt-repository universe -y
+        sudo apt update
+        sudo apt install -y python2
+        sudo ln -sf /usr/bin/python2 /usr/bin/python
       continue-on-error: true
 
     - name: Tmate SSH - Customize your adbd
       if: ${{ inputs.DEBUG }}
       uses: mxschmitt/action-tmate@v3
-    
+
     - name: Building adbd
       run: |
+        export JAVA_HOME=${{ env.JAVA_HOME }}
+        echo "Java version check:"
+        java -version
+        echo "JAVA_HOME=$JAVA_HOME"
+        ls -l $JAVA_HOME/lib/tools.jar
+        
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
-        lunch aosp_${{ github.event.inputs.DEVICE_ARCH }}-eng && make clean && make adbd -j$(nproc --all)
+        lunch aosp_${{ github.event.inputs.DEVICE_ARCH }}-eng
+        make clean
+        make adbd -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
     - name: Upload to Release
