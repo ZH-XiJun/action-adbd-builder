@@ -4,16 +4,16 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
-      MANIFEST_URL:
-        description: 'MANIFEST_URL (if want to use SSH keys, use git@github.com:XXXXX)'
+      SOURCE_URL:
+        description: 'Android source URL (Usually keep default)'
         required: true
-        default: 'https://android.googlesource.com/platform/manifest'
+        default: 'https://android.googlesource.com/'
       MANIFEST_BRANCH:
-        description: 'MANIFEST_BRANCH'
+        description: "Source branch (Pls refer to the reference in README.md of the repo)"
         required: true
         default: 'android-7.1.2_r39'
       DEVICE_ARCH:
-        description: 'DEVICE_ARCH'
+        description: 'Device architecture'
         required: true
         default: 'arm'
       DEBUG:
@@ -31,7 +31,7 @@ jobs:
     - name: Display Run Parameters
       run: |
         echo "::group::User Environment Variables"
-        echo "Manifest URL: ${{ github.event.inputs.MANIFEST_URL }}"
+        echo "Source URL: ${{ github.event.inputs.SOURCE_URL }}"
         echo "Manifest Branch: ${{ github.event.inputs.MANIFEST_BRANCH }}"
         echo "Device Arch: ${{ github.event.inputs.DEVICE_ARCH }}"
         echo "::endgroup::"
@@ -52,7 +52,7 @@ jobs:
             libgl1-mesa-dev libxml2-utils xsltproc bc ccache lib32readline-dev \
             lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev libwxgtk3.0-gtk3-dev \
             libxml2 lzop pngcrush schedtool squashfs-tools imagemagick libbz2-dev \
-            lzma ncftp qemu-user-static libstdc++-10-dev libncurses5 python3
+            lzma ncftp qemu-user-static libstdc++-10-dev libncurses5 python3 ninja-build
 
     - name: Install OpenJDK
       uses: actions/setup-java@v4
@@ -61,39 +61,8 @@ jobs:
         java-version: '8'
         check-latest: false
 
-    - name: Setup SSH Keys
-      if: ${{ startsWith(github.event.inputs.MANIFEST_URL, 'git@github.com') }}
-      uses: webfactory/ssh-agent@v0.9.0
-      with:
-          ssh-private-key: |
-              ${{ secrets.SSH_PRIVATE_KEY }}
-
-    - name: Install repo
-      run: |
-        mkdir ~/bin
-        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-        chmod a+x ~/bin/repo
-        sudo ln -sf ~/bin/repo /usr/bin/repo
-
-    - name: Initialize repo
-      run: |
-        mkdir workspace
-        cd workspace
-        echo "workspace-folder=$(pwd)" >> $GITHUB_OUTPUT
-        git config --global user.name "azwhikaru"
-        git config --global user.email "azwhikaru+37921907@github.com"
-        repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
-      id: pwd
-
-    - name: Repo Sync
-      run: |
-        repo sync -j$(nproc --all) --force-sync
-      working-directory: workspace
-
-    - name: Set Swap Space
-      uses: pierotofy/set-swap-space@master
-      with:
-        swap-size-gb: 12
+    - name: Get adb source
+      run: git clone ${{ github.event.inputs.SOURCE_URL }}/platform/system/core workspace
 
     - name: Switch to Python2
       run: |
@@ -120,7 +89,8 @@ jobs:
         lunch aosp_${{ github.event.inputs.DEVICE_ARCH }}-eng
         make clean
         make adbd -j$(nproc --all)
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+      working-directory: workspace
+      continue-on-error: true
 
     - name: Upload to Release
       uses: softprops/action-gh-release@v2
