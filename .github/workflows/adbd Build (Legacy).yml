@@ -62,7 +62,7 @@ jobs:
         check-latest: false
 
     - name: Get adb source
-      run: git clone ${{ github.event.inputs.SOURCE_URL }}/platform/system/core workspace
+      run: git clone ${{ github.event.inputs.SOURCE_URL }}/platform/system/core workspace -b ${{ github.event.inputs.MANIFEST_BRANCH }}
 
     - name: Switch to Python2
       run: |
