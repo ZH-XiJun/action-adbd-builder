@@ -7,7 +7,7 @@ on:
       SOURCE_URL:
         description: 'Android source URL (Usually keep default)'
         required: true
-        default: 'https://android.googlesource.com/'
+        default: 'https://android.googlesource.com'
       MANIFEST_BRANCH:
         description: "Source branch (Pls refer to the reference in README.md of the repo)"
         required: true
@@ -16,6 +16,11 @@ on:
         description: 'Device architecture'
         required: true
         default: 'arm'
+      SKIP_CLEANUP:
+        description: 'Skip cleanup step to speed up build process'
+        required: true
+        type: boolean
+        default: true
       DEBUG:
         description: 'Give me a shell to customize my adbd'
         required: true
@@ -41,6 +46,7 @@ jobs:
 
     - name: Cleanup
       uses: rokibhasansagar/slimhub_actions@main
+      if: ! github.event.inputs.SKIP_CLEANUP
 
     - name: Prepare the environment
       run: |
