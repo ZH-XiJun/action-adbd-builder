@@ -46,13 +46,13 @@ jobs:
 
     - name: Cleanup
       uses: rokibhasansagar/slimhub_actions@main
-      if: ${{ github.event.inputs.SKIP_CLEANUP == false }}
+      if: ${{ inputs.SKIP_CLEANUP == false }}
 
-    - name: Minimum cleanup
-      uses: rokibhasansagar/slimhub_actions@main
+    - name: Minimal cleanup
+      uses: ZH-XiJun/slimhub_actions@main
+      if: ${{ inputs.SKIP_CLEANUP }}
       with:
-        retain: "browser_firefox"
-      if: ${{ github.event.inputs.SKIP_CLEANUP }}
+        remove: "browser_all"
 
     - name: Prepare the environment
       run: |
@@ -90,7 +90,10 @@ jobs:
         repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
 
     - name: Get adb source
-      run: repo sync -j$(nproc --all) --force-sync platform/build platform/system/core
+      run: repo sync -j$(nproc --all) --force-sync \
+              platform/build \
+              platform/build/blueprint platform/build/kati \
+              platform/build/soong platform/system/core
       working-directory: workspace
       
     - name: Switch to Python2
