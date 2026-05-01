@@ -4,10 +4,10 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
-      SOURCE_URL:
-        description: 'Android source URL (Usually keep default)'
+      MANIFEST_URL:
+        description: 'Android source manifest URL (Usually keep default)'
         required: true
-        default: 'https://android.googlesource.com'
+        default: 'https://android.googlesource.com/platform/manifest'
       MANIFEST_BRANCH:
         description: "Source branch (Pls refer to the reference in README.md of the repo)"
         required: true
@@ -36,7 +36,7 @@ jobs:
     - name: Display Run Parameters
       run: |
         echo "::group::User Environment Variables"
-        echo "Source URL: ${{ github.event.inputs.SOURCE_URL }}"
+        echo "Source URL: ${{ github.event.inputs.MANIFEST_URL }}"
         echo "Manifest Branch: ${{ github.event.inputs.MANIFEST_BRANCH }}"
         echo "Device Arch: ${{ github.event.inputs.DEVICE_ARCH }}"
         echo "::endgroup::"
@@ -67,9 +67,26 @@ jobs:
         java-version: '8'
         check-latest: false
 
-    - name: Get adb source
-      run: git clone ${{ github.event.inputs.SOURCE_URL }}/platform/system/core workspace -b ${{ github.event.inputs.MANIFEST_BRANCH }}
+    - name: Install repo
+      run: |
+        mkdir ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        sudo ln -sf ~/bin/repo /usr/bin/repo
+      
+    - name: Initialize repo
+      run: |
+        mkdir workspace
+        cd workspace
+        echo "workspace-folder=$(pwd)" >> $GITHUB_OUTPUT
+        git config --global user.name "azwhikaru"
+        git config --global user.email "azwhikaru+37921907@github.com"
+        repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
+      id: pwd
 
+    - name: Get adb source
+      run: repo sync -j$(nproc --all) --force-sync platform/build platform/system/core
+      
     - name: Switch to Python2
       run: |
         sudo add-apt-repository universe -y
