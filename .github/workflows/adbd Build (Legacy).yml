@@ -90,10 +90,7 @@ jobs:
         repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
 
     - name: Get adb source
-      run: repo sync -j$(nproc --all) --force-sync \
-              platform/build \
-              platform/build/blueprint platform/build/kati \
-              platform/build/soong platform/system/core
+      run: repo sync -j$(nproc --all) --force-sync platform/build platform/build/blueprint platform/build/kati platform/build/soong platform/system/core
       working-directory: workspace
       
     - name: Switch to Python2
