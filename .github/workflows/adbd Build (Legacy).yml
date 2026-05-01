@@ -20,7 +20,7 @@ on:
         description: 'Only do minimum cleanup step to speed up the whole process'
         required: true
         type: boolean
-        default: true
+        default: false
       DEBUG:
         description: 'Give me a shell to customize my adbd'
         required: true
@@ -88,10 +88,10 @@ jobs:
         git config --global user.name "azwhikaru"
         git config --global user.email "azwhikaru+37921907@github.com"
         repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
-      id: pwd
 
     - name: Get adb source
       run: repo sync -j$(nproc --all) --force-sync platform/build platform/system/core
+      working-directory: workspace
       
     - name: Switch to Python2
       run: |
